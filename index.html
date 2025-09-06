@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insta-Learn - Daily Adaptive Learning</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+        }
+        .card {
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+        }
+        .card.is-flipped {
+            transform: rotateY(180deg);
+        }
+        .card-face {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+        .card-face-back {
+            transform: rotateY(180deg);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-in-out;
+        }
+        .confidence-btn.selected {
+            background-color: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #certificate-content, #certificate-content * {
+                visibility: visible;
+            }
+            #certificate-content {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                padding: 2rem;
+            }
+            #modal-overlay {
+                display: block !important;
+                background-color: white;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-100">
+
+    <div id="app-layout" class="flex h-screen">
+        <!-- Left Menu Bar -->
+        <aside id="left-menu-bar" class="w-72 bg-white shadow-lg flex-col transition-transform duration-300 -translate-x-full fixed sm:relative sm:translate-x-0 h-full z-20 hidden sm:flex">
+            <div class="p-5 border-b flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-indigo-600">Insta-Learn</h1>
+                <button id="mobile-close-menu-btn" class="sm:hidden text-slate-500 hover:text-slate-800">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <nav class="flex-grow p-4 space-y-2 overflow-y-auto custom-scrollbar">
+                <a href="#" id="menu-dashboard-link" class="flex items-center gap-3 p-3 rounded-lg font-semibold text-slate-700 bg-indigo-100">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" id="menu-certificates-link" class="flex items-center gap-3 p-3 rounded-lg font-semibold text-slate-700 hover:bg-indigo-50">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span>My Certificates</span>
+                </a>
+                
+                <div id="menu-topics-container" class="pt-4"></div>
+            </nav>
+
+            <div class="p-4 border-t mt-auto">
+                <div class="flex items-center gap-3">
+                    <div id="menu-avatar-container" class="w-10 h-10 bg-slate-200 rounded-full cursor-pointer flex-shrink-0"></div>
+                    <div class="overflow-hidden">
+                        <p id="menu-user-name" class="font-semibold text-sm truncate">Learner</p>
+                        <a href="#" id="menu-logout-btn" class="text-xs text-slate-500 hover:text-indigo-600">Log Out</a>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main id="main-content" class="flex-grow flex flex-col overflow-y-auto">
+             <div id="app-container" class="w-full h-full flex flex-col items-center justify-center p-4">
+                <div id="login-signup-wrapper" class="w-full max-w-md">
+                    <!-- Login View -->
+                    <div id="login-view">
+                        <header class="text-center mb-8"><h1 class="text-4xl font-bold text-slate-900">Insta-Learn</h1><p class="text-slate-600 mt-1">Your AI-powered corporate learning companion.</p></header>
+                        <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                            <h2 class="text-2xl font-semibold mb-2 text-center">Welcome Back!</h2>
+                            <p class="text-slate-500 mb-6 text-center">Please log in to your account.</p>
+                            <form id="login-form"><div class="space-y-4"><input type="email" placeholder="Email Address" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition" required><input type="password" placeholder="Password" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition" required><button type="submit" class="w-full bg-indigo-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Log In</button></div></form>
+                            <p class="text-center text-slate-500 mt-6">Don't have an account? <a href="#" id="show-signup-link" class="font-semibold text-indigo-600 hover:underline">Sign Up</a></p>
+                        </div>
+                    </div>
+                    <!-- Signup View -->
+                    <div id="signup-view" class="hidden">
+                        <header class="text-center mb-8"><h1 class="text-4xl font-bold text-slate-900">Insta-Learn</h1><p class="text-slate-600 mt-1">Your AI-powered corporate learning companion.</p></header>
+                         <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                            <h2 class="text-2xl font-semibold mb-2 text-center">Create Your Account</h2>
+                            <p class="text-slate-500 mb-6 text-center">Join Insta-Learn to start your personalized journey.</p>
+                            <form id="signup-form"><div class="space-y-4"><input type="text" id="signup-name" placeholder="Your Name" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition" required><input type="email" placeholder="Email Address" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition" required><input type="password" placeholder="Password" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition" required><button type="submit" class="w-full bg-indigo-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Create Account</button></div></form>
+                            <p class="text-center text-slate-500 mt-6">Already have an account? <a href="#" id="show-login-link" class="font-semibold text-indigo-600 hover:underline">Log In</a></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Survey Wrapper -->
+                <div id="survey-wrapper" class="hidden w-full max-w-3xl">
+                    <div id="survey-view">
+                         <header class="text-center mb-8">
+                            <h1 class="text-4xl font-bold text-slate-900">Personalize Your Path</h1>
+                            <p class="text-slate-600 mt-1">Answer a few questions to tailor your learning experience.</p>
+                        </header>
+                        <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                            <form id="survey-form">
+                                <div class="space-y-8">
+                                    <!-- Step 1: Goals -->
+                                    <div>
+                                        <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">1. Your Learning Goals</h3>
+                                        <div class="space-y-6 pl-2">
+                                            <div>
+                                                <label for="company-req" class="block text-lg font-semibold text-slate-800 mb-2">Company Requirements</label>
+                                                <p class="text-sm text-slate-500 mb-2">What skills does your company need you to develop for current or upcoming projects?</p>
+                                                <textarea id="company-req" rows="3" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition" placeholder="e.g., 'Understand cloud computing basics for the new AWS migration.'"></textarea>
+                                            </div>
+                                            <div>
+                                                <label for="team-req" class="block text-lg font-semibold text-slate-800 mb-2">Team Requirements</label>
+                                                <p class="text-sm text-slate-500 mb-2">What does your immediate team need you to be proficient in to improve collaboration?</p>
+                                                <textarea id="team-req" rows="3" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition" placeholder="e.g., 'Learn agile methodologies to participate better in daily stand-ups.'"></textarea>
+                                            </div>
+                                            <div>
+                                                <label for="personal-req" class="block text-lg font-semibold text-slate-800 mb-2">Personal Goals</label>
+                                                <p class="text-sm text-slate-500 mb-2">What are you personally interested in learning for your career growth?</p>
+                                                <textarea id="personal-req" rows="3" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition" placeholder="e.g., 'I want to improve my public speaking and presentation skills.'"></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Step 2: Competence -->
+                                     <div>
+                                        <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">2. Your Current Skills</h3>
+                                         <div class="space-y-6 pl-2">
+                                            <div>
+                                                <label for="current-skills" class="block text-lg font-semibold text-slate-800 mb-2">Current Skill Set</label>
+                                                <p class="text-sm text-slate-500 mb-2">Briefly list your key skills and your perceived proficiency (e.g., Beginner, Intermediate, Advanced).</p>
+                                                <textarea id="current-skills" rows="3" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition" placeholder="e.g., 'Intermediate Python, Beginner data analysis, Advanced project management.'"></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Step 3: Engagement Preferences -->
+                                    <div>
+                                        <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">3. Your Learning Style</h3>
+                                        <div class="space-y-6 pl-2">
+                                            <div>
+                                                <label class="block text-lg font-semibold text-slate-800 mb-2">How do you prefer to learn?</label>
+                                                <p class="text-sm text-slate-500 mb-3">Select all that apply. This helps us choose the right type of activity for you.</p>
+                                                <div id="learning-style-choices" class="grid grid-cols-2 gap-3">
+                                                    <label class="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer"><input type="checkbox" name="learning-style" value="reading" class="h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500"> <span>Reading summaries</span></label>
+                                                    <label class="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer"><input type="checkbox" name="learning-style" value="video" class="h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500"> <span>Watching videos</span></label>
+                                                    <label class="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer"><input type="checkbox" name="learning-style" value="quiz" class="h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500"> <span>Interactive quizzes</span></label>
+                                                    <label class="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer"><input type="checkbox" name="learning-style" value="flashcards" class="h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500"> <span>Flashcard drills</span></label>
+                                                </div>
+                                            </div>
+                                             <div>
+                                                <label class="block text-lg font-semibold text-slate-800 mb-2">What keeps you motivated?</label>
+                                                <p class="text-sm text-slate-500 mb-3">This helps us frame your progress in a way that resonates with you.</p>
+                                                <div id="motivation-choices" class="space-y-2">
+                                                    <label class="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer"><input type="radio" name="motivation" value="certificates" class="h-5 w-5 text-indigo-600 focus:ring-indigo-500"> <span>Earning certificates and achievements</span></label>
+                                                    <label class="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer"><input type="radio" name="motivation" value="leaderboard" class="h-5 w-5 text-indigo-600 focus:ring-indigo-500"> <span>Competing on a leaderboard</span></label>
+                                                    <label class="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer"><input type="radio" name="motivation" value="mastery" class="h-5 w-5 text-indigo-600 focus:ring-indigo-500"> <span>Mastering a skill for a project</span></label>
+                                                    <label class="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer"><input type="radio" name="motivation" value="growth" class="h-5 w-5 text-indigo-600 focus:ring-indigo-500"> <span>Personal growth and curiosity</span></label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="submit" class="w-full mt-8 bg-indigo-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Generate My Learning Path</button>
+                            </form>
+                        </div>
+                    </div>
+                     <div id="survey-loading-view" class="hidden flex flex-col items-center justify-center text-center p-8">
+                        <div class="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                        <p class="mt-4 text-lg font-medium text-slate-600">Analyzing your needs and suggesting topics...</p>
+                        <p class="text-sm text-slate-500">This can take a moment.</p>
+                    </div>
+                </div>
+
+                <div id="main-app-content" class="hidden w-full max-w-5xl mx-auto p-6 md:p-8">
+                    <header class="sm:hidden bg-slate-100 -mx-6 -mt-8 mb-6 p-4 flex justify-between items-center sticky top-0 z-10 shadow-sm">
+                        <h1 class="text-xl font-bold text-indigo-600">Insta-Learn</h1>
+                        <button id="mobile-menu-btn"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+                    </header>
+
+                    <!-- Main Dashboard View -->
+                    <div id="dashboard-view">
+                        <div class="flex items-center gap-4 mb-8">
+                            <div id="dashboard-avatar-container" class="w-16 h-16 bg-slate-200 rounded-full cursor-pointer flex items-center justify-center flex-shrink-0" title="Click to change avatar"></div>
+                            <div>
+                                <h2 id="dashboard-greeting" class="text-2xl md:text-3xl font-bold text-slate-800">Welcome back!</h2>
+                                <p class="text-slate-500">Let's continue your learning journey.</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                            <div class="bg-white p-4 rounded-xl text-center shadow"><span id="stat-points" class="text-3xl font-bold text-indigo-600">0</span><p class="text-sm text-slate-500 font-medium">Total Points</p></div>
+                            <div class="bg-white p-4 rounded-xl text-center shadow"><span id="stat-streak" class="text-3xl font-bold text-emerald-600">0 Days</span><p class="text-sm text-slate-500 font-medium">Daily Streak</p></div>
+                            <div class="bg-white p-4 rounded-xl text-center shadow"><span id="stat-mastered-topics" class="text-3xl font-bold text-sky-600">0</span><p class="text-sm text-slate-500 font-medium">Topics Mastered</p></div>
+                            <div class="bg-white p-4 rounded-xl text-center shadow"><span id="stat-avg-score" class="text-3xl font-bold text-amber-600">0%</span><p class="text-sm text-slate-500 font-medium">Average Score</p></div>
+                        </div>
+                        <div class="bg-indigo-600 text-white p-6 rounded-xl mb-8 flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg">
+                            <div><h3 class="text-2xl font-bold">Today's 3-Minute Training</h3><p class="opacity-80">Strengthen your knowledge with a few quick questions.</p></div>
+                            <button id="start-daily-training-btn" class="bg-white text-indigo-600 font-bold py-3 px-6 rounded-lg hover:bg-indigo-100 transition shadow-lg w-full md:w-auto flex-shrink-0">Start Now</button>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            <div class="lg:col-span-2 space-y-8">
+                                <div class="bg-white p-6 rounded-xl shadow">
+                                    <h3 class="text-xl font-semibold mb-3 text-slate-800">Progress Over Time</h3>
+                                    <p class="text-slate-500 mb-4 text-sm">Showing your recent quiz scores for <strong id="chart-topic-name">...</strong></p>
+                                    <div class="h-40"><canvas id="progress-chart"></canvas></div>
+                                </div>
+                                <div class="bg-white p-6 rounded-xl shadow">
+                                    <h3 class="text-xl font-semibold mb-3 text-slate-800">Focus Areas</h3>
+                                    <p class="text-slate-500 mb-4 text-sm">Based on your performance, we suggest reviewing these concepts.</p>
+                                    <div id="focus-areas-list" class="space-y-2"></div>
+                                </div>
+                            </div>
+                            <div class="bg-white p-6 rounded-xl shadow">
+                                <h3 class="text-xl font-semibold mb-3 text-slate-800">Top Learners</h3>
+                                <div id="leaderboard-list" class="space-y-3"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- View 2: Certificates View -->
+                    <div id="certificates-view" class="hidden">
+                        <h2 class="text-3xl font-bold text-slate-800 mb-6">My Achievements</h2>
+                        <div id="certificates-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <!-- Certificate cards will be injected here -->
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for Topic Selection / Loading / Learning -->
+    <div id="modal-overlay" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div id="modal-content" class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div class="p-6 border-b flex justify-between items-center no-print"><h2 id="modal-title" class="text-xl font-bold"></h2><button id="modal-close-btn" class="text-slate-500 hover:text-slate-800 text-3xl leading-none">&times;</button></div>
+            <div id="modal-body" class="p-6 flex-grow overflow-y-auto custom-scrollbar"></div>
+        </div>
+    </div>
+    
+    <script>
+        function callGemini() {
+    fetch('/gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: "Hello Gemini!" })
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log(data);
+    })
+    .catch(err => {
+      console.error('Error:', err);
+    });
+  }
+        // DOM Elements
+        const loginView = document.getElementById('login-view'), signupView = document.getElementById('signup-view'), surveyWrapper = document.getElementById('survey-wrapper'), surveyView = document.getElementById('survey-view'), surveyLoadingView = document.getElementById('survey-loading-view'), surveyForm = document.getElementById('survey-form'), dashboardView = document.getElementById('dashboard-view'), certificatesView = document.getElementById('certificates-view'), leftMenuBar = document.getElementById('left-menu-bar'), loginSignupWrapper = document.getElementById('login-signup-wrapper'), mainAppContent = document.getElementById('main-app-content'), loginForm = document.getElementById('login-form'), signupForm = document.getElementById('signup-form'), showSignupLink = document.getElementById('show-signup-link'), showLoginLink = document.getElementById('show-login-link'), mobileMenuBtn = document.getElementById('mobile-menu-btn'), mobileCloseMenuBtn = document.getElementById('mobile-close-menu-btn'), modalOverlay = document.getElementById('modal-overlay'), modalBody = document.getElementById('modal-body'), modalTitle = document.getElementById('modal-title'), closeModalBtn = document.getElementById('modal-close-btn'), dashboardAvatarContainer = document.getElementById('dashboard-avatar-container'), dashboardGreeting = document.getElementById('dashboard-greeting'), startDailyTrainingBtn = document.getElementById('start-daily-training-btn'), leaderboardList = document.getElementById('leaderboard-list'), focusAreasList = document.getElementById('focus-areas-list'), menuDashboardLink = document.getElementById('menu-dashboard-link'), menuCertificatesLink = document.getElementById('menu-certificates-link'), menuTopicsContainer = document.getElementById('menu-topics-container'), menuAvatarContainer = document.getElementById('menu-avatar-container'), menuUserName = document.getElementById('menu-user-name'), menuLogoutBtn = document.getElementById('menu-logout-btn');
+        
+        // App State
+        let state = { loggedIn: false, userName: "Learner", points: 0, dailyStreak: 0, lastLoginDate: null, avatarId: 0, userProgress: {}, currentTopic: null, hasCompletedSurvey: false, surveyData: null, suggestedTopics: [] };
+        let progressChart = null;
+
+        const AVATARS = [
+            `<svg viewBox="0 0 36 36" fill="none" role="img" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><mask id=":r1:" maskUnits="userSpaceOnUse" x="0" y="0" width="36" height="36"><rect width="36" height="36" rx="72" fill="#FFFFFF"></rect></mask><g mask="url(#:r1:)"><rect width="36" height="36" fill="#ff7d10"></rect><rect x="0" y="0" width="36" height="36" transform="translate(4 4) rotate(170 18 18) scale(1.1)" fill="#0c8f8f" rx="36"></rect><g transform="translate(6 6) rotate(0 12 12)"><path d="M12 14c2.5 0 8 1.67 8 5v3H4v-3c0-3.33 5.5-5 8-5z" fill="#FFFFFF"></path><circle cx="12" cy="7" r="4" fill="#FFFFFF"></circle></g></g></svg>`,
+            `<svg viewBox="0 0 36 36" fill="none" role="img" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><mask id=":r2:" maskUnits="userSpaceOnUse" x="0" y="0" width="36" height="36"><rect width="36" height="36" rx="72" fill="#FFFFFF"></rect></mask><g mask="url(#:r2:)"><rect width="36" height="36" fill="#0c8f8f"></rect><rect x="0" y="0" width="36" height="36" transform="translate(2 2) rotate(230 18 18) scale(1.2)" fill="#ff7d10" rx="36"></rect><g transform="translate(4 4) rotate(-10 14 14)"><path d="M14 18c6 0 10-2 10-6s-4-6-10-6-10 2-10 6 4 6 10 6z" fill="#FFFFFF"></path><circle cx="14" cy="12" r="4" fill="#000000"></circle></g></g></svg>`,
+            `<svg viewBox="0 0 36 36" fill="none" role="img" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><mask id=":r3:" maskUnits="userSpaceOnUse" x="0" y="0" width="36" height="36"><rect width="36" height="36" rx="72" fill="#FFFFFF"></rect></mask><g mask="url(#:r3:)"><rect width="36" height="36" fill="#ff7d10"></rect><rect x="0" y="0" width="36" height="36" transform="translate(0 0) rotate(236 18 18) scale(1)" fill="#0c8f8f" rx="6"></rect><g transform="translate(5 5) rotate(6 13 13)"><path d="M21 21v-2c0-2.2-3.6-4-8-4s-8 1.8-8 4v2" fill="none" stroke="#FFFFFF" stroke-width="2"></path><circle cx="13" cy="8" r="4" stroke="#FFFFFF" stroke-width="2"></circle></g></g></svg>`
+        ];
+        const SPACED_REPETITION_INTERVALS = [1, 3, 7, 14, 30, 90]; 
+
+        function init() {
+            loginForm.addEventListener('submit', handleLogin);
+            signupForm.addEventListener('submit', handleSignup);
+            surveyForm.addEventListener('submit', handleSurveySubmit);
+            menuLogoutBtn.addEventListener('click', handleLogout);
+            showSignupLink.addEventListener('click', (e) => { e.preventDefault(); switchAuthView('signup'); });
+            showLoginLink.addEventListener('click', (e) => { e.preventDefault(); switchAuthView('login'); });
+            menuDashboardLink.addEventListener('click', (e) => { e.preventDefault(); switchAppView('dashboard'); });
+            menuCertificatesLink.addEventListener('click', (e) => { e.preventDefault(); switchAppView('certificates'); });
+            closeModalBtn.addEventListener('click', closeModal);
+            [dashboardAvatarContainer, menuAvatarContainer].forEach(el => el.addEventListener('click', cycleAvatar));
+            mobileMenuBtn.addEventListener('click', () => leftMenuBar.classList.remove('-translate-x-full'));
+            mobileCloseMenuBtn.addEventListener('click', () => leftMenuBar.classList.add('-translate-x-full'));
+            startDailyTrainingBtn.addEventListener('click', startDailyTraining);
+        }
+
+        function switchAuthView(viewName) { loginView.classList.toggle('hidden', viewName !== 'login'); signupView.classList.toggle('hidden', viewName !== 'signup'); }
+        function switchAppView(viewName) {
+            [dashboardView, certificatesView].forEach(v => v.classList.add('hidden'));
+            const views = { dashboard: dashboardView, certificates: certificatesView };
+            if (views[viewName]) {
+                views[viewName].classList.remove('hidden');
+                document.querySelectorAll('#left-menu-bar a').forEach(a => a.classList.remove('bg-indigo-100'));
+                if(viewName === 'dashboard') menuDashboardLink.classList.add('bg-indigo-100');
+                if(viewName === 'certificates') menuCertificatesLink.classList.add('bg-indigo-100');
+            }
+             if(viewName === 'certificates') renderCertificatesView();
+        }
+        
+        function handleLogin(e) {
+            e.preventDefault();
+            loadState();
+            if (!state.loggedIn) { // Simulating a successful login for a returning user
+                state.loggedIn = true;
+                const today = new Date().toISOString().split('T')[0];
+                const yesterday = new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split('T')[0];
+                if(state.lastLoginDate === yesterday) state.dailyStreak++;
+                else if (state.lastLoginDate !== today) state.dailyStreak = 1;
+                state.lastLoginDate = today;
+                saveState();
+            }
+
+            if (!state.hasCompletedSurvey) {
+                showSurvey();
+            } else {
+                showDashboard();
+            }
+        }
+
+        function handleSignup(e) {
+            e.preventDefault();
+            const name = document.getElementById('signup-name').value;
+            state = { ...state, loggedIn: true, userName: name || "Learner", points: 0, dailyStreak: 1, lastLoginDate: new Date().toISOString().split('T')[0], avatarId: 0, userProgress: {}, hasCompletedSurvey: false, surveyData: null, suggestedTopics: [] };
+            saveState();
+            showSurvey();
+        }
+
+        async function handleSurveySubmit(e) {
+            e.preventDefault();
+            surveyView.classList.add('hidden');
+            surveyLoadingView.classList.remove('hidden');
+            const learningStyles = Array.from(document.querySelectorAll('input[name="learning-style"]:checked')).map(el => el.value);
+            const motivation = document.querySelector('input[name="motivation"]:checked')?.value || 'not_specified';
+            const surveyData = {
+                company: document.getElementById('company-req').value,
+                team: document.getElementById('team-req').value,
+                personal: document.getElementById('personal-req').value,
+                skills: document.getElementById('current-skills').value,
+                learningStyles: learningStyles,
+                motivation: motivation
+            };
+            state.surveyData = surveyData;
+
+            try {
+                const userPrompt = `Company requirements: "${surveyData.company}". Team requirements: "${surveyData.team}". Personal goals: "${surveyData.personal}". Current skills: "${surveyData.skills}".`;
+
+                const response = await fetch('/gemini', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ prompt: userPrompt }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`API Error: ${errorData.error.message}`);
+                }
+
+                const result = await response.json();
+                const suggested = JSON.parse(result.candidates[0].content.parts[0].text);
+                state.suggestedTopics = suggested.topics || [];
+            } catch (error) {
+                console.error("Error fetching topic suggestions:", error);
+                // Provide default topics on failure
+                state.suggestedTopics = ["Effective Communication", "Time Management", "Public Speaking", "Leadership Skills"];
+            }
+
+            state.hasCompletedSurvey = true;
+            saveState();
+            showDashboard();
+            // Automatically open the topic selection modal with the new suggestions
+            setTimeout(() => showTopicSelectionModal(state.suggestedTopics), 500);
+        }
+
+        function showSurvey() {
+            document.getElementById('app-container').classList.remove('justify-center');
+            loginSignupWrapper.classList.add('hidden');
+            mainAppContent.classList.add('hidden');
+            surveyWrapper.classList.remove('hidden');
+            surveyView.classList.remove('hidden');
+            surveyLoadingView.classList.add('hidden');
+        }
+        
+        function showDashboard() {
+            document.getElementById('app-container').classList.remove('justify-center');
+            loginSignupWrapper.classList.add('hidden');
+            surveyWrapper.classList.add('hidden');
+            mainAppContent.classList.remove('hidden');
+            leftMenuBar.classList.remove('hidden');
+            renderDashboard();
+            switchAppView('dashboard');
+        }
+
+        function handleLogout() {
+            state.loggedIn = false;
+            // Optionally clear all state on logout:
+            // localStorage.removeItem('auraLearnState');
+            // state = { loggedIn: false, ...};
+            document.getElementById('app-container').classList.add('justify-center');
+            loginSignupWrapper.classList.remove('hidden');
+            mainAppContent.classList.add('hidden');
+            leftMenuBar.classList.add('hidden');
+            surveyWrapper.classList.add('hidden');
+            switchAuthView('login');
+        }
+        
+        function saveState() { localStorage.setItem('auraLearnState', JSON.stringify(state)); }
+        function loadState() { const saved = localStorage.getItem('auraLearnState'); if (saved) state = { ...state, ...JSON.parse(saved) };}
+        
+        function renderDashboard() {
+            renderAvatar();
+            menuUserName.textContent = state.userName;
+            dashboardGreeting.textContent = `Welcome back, ${state.userName}!`;
+            renderDashboardStats();
+            renderMenuTopics();
+            renderFocusAreas();
+            renderLeaderboard();
+            renderProgressChart();
+        }
+        
+        function cycleAvatar() { state.avatarId = (state.avatarId + 1) % AVATARS.length; renderAvatar(); saveState(); }
+        function renderAvatar() { dashboardAvatarContainer.innerHTML = AVATARS[state.avatarId]; menuAvatarContainer.innerHTML = AVATARS[state.avatarId]; }
+        
+        function renderDashboardStats() {
+            document.getElementById('stat-points').textContent = state.points;
+            document.getElementById('stat-streak').textContent = `${state.dailyStreak} Day${state.dailyStreak !== 1 ? 's' : ''}`;
+            const allTopics = Object.values(state.userProgress);
+            if(allTopics.length === 0) { document.getElementById('stat-mastered-topics').textContent = "0"; document.getElementById('stat-avg-score').textContent = "0%"; return; }
+            let masteredTopicsCount = 0, totalQuizzesTaken = 0, totalQuizScoreSum = 0;
+            allTopics.forEach(p => {
+                const total = (p.module.flashcards?.length||0)+(p.module.quiz?.length||0), mastered = Object.values(p.items||{}).filter(i=>i.level>3).length;
+                if (total > 0 && (mastered/total)>=0.9) masteredTopicsCount++;
+                const h = p.performance?.quizHistory||[]; totalQuizzesTaken+=h.length; totalQuizScoreSum+=h.reduce((s,q)=>s+q.score,0);
+            });
+            document.getElementById('stat-mastered-topics').textContent = masteredTopicsCount;
+            document.getElementById('stat-avg-score').textContent = totalQuizzesTaken > 0 ? `${Math.round((totalQuizScoreSum/totalQuizzesTaken)*100)}%` : "0%";
+        }
+
+        function renderMenuTopics() {
+            const topics = Object.keys(state.userProgress);
+            const inProgressHtml = [], masteredHtml = [];
+            
+            const newTopicBtn = `<button id="start-new-topic-btn" class="flex items-center gap-3 p-3 rounded-lg font-semibold text-indigo-600 hover:bg-indigo-50"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg><span>Start New Topic</span></button>`;
+
+            topics.forEach(topic => {
+                const p = state.userProgress[topic], total = (p.module.flashcards?.length||0)+(p.module.quiz?.length||0), mastered = Object.values(p.items||{}).filter(i=>i.level>3).length;
+                const mastery = total > 0 ? Math.round((mastered/total)*100) : 0;
+                const certIcon = `<svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9zM3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm11 1H6v8l4-2 4 2V6z" clip-rule="evenodd"></path></svg>`;
+                const html = `<a href="#" class="block p-3 rounded-lg hover:bg-slate-100" data-topic="${topic}"><div class="flex justify-between items-center"><span class="font-semibold text-sm flex items-center gap-2">${topic} ${mastery >= 90 ? certIcon : ''}</span><div class="w-1/3 bg-slate-200 rounded-full h-1.5"><div class="bg-indigo-600 h-1.5 rounded-full" style="width:${mastery}%"></div></div></div></a>`;
+                if (mastery >= 90) masteredHtml.push(html); else inProgressHtml.push(html);
+            });
+            let finalHtml = newTopicBtn;
+            if(inProgressHtml.length > 0) finalHtml += `<h3 class="pt-4 px-3 pb-2 text-sm font-semibold text-slate-400 uppercase tracking-wider">In Progress</h3><div class="space-y-1">${inProgressHtml.join('')}</div>`;
+            if(masteredHtml.length > 0) finalHtml += `<h3 class="pt-4 px-3 pb-2 text-sm font-semibold text-slate-400 uppercase tracking-wider">Mastered</h3><div class="space-y-1">${masteredHtml.join('')}</div>`;
+            
+            menuTopicsContainer.innerHTML = finalHtml;
+
+            document.getElementById('start-new-topic-btn').addEventListener('click', () => showTopicSelectionModal(state.suggestedTopics));
+            menuTopicsContainer.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', (e) => { e.preventDefault(); showTopicActionsModal(e.currentTarget.dataset.topic); leftMenuBar.classList.add('-translate-x-full'); });
+            });
+        }
+        
+        function renderFocusAreas() {
+            const confidentlyWrongItems = [];
+             Object.entries(state.userProgress).forEach(([topic, progress]) => {
+                Object.entries(progress.items || {}).forEach(([itemId, data]) => {
+                    if (data.incorrectCount > 0 && data.lastConfidence === 'high') {
+                        const [type, indexStr] = itemId.split('_');
+                        const index = parseInt(indexStr);
+                        let itemText;
+                        if (type === 'q' && progress.module.quiz[index]) {
+                            itemText = progress.module.quiz[index].question;
+                            confidentlyWrongItems.push({ topic, itemId, itemText, incorrectCount: data.incorrectCount });
+                        }
+                    }
+                });
+            });
+            confidentlyWrongItems.sort((a, b) => b.incorrectCount - a.incorrectCount);
+            if (confidentlyWrongItems.length > 0) {
+                focusAreasList.innerHTML = confidentlyWrongItems.slice(0, 3).map(item => `<a href="#" data-topic="${item.topic}" class="focus-item-link block p-3 bg-slate-50 rounded-lg hover:bg-slate-200 transition"><p class="font-semibold text-sm text-slate-700 truncate">${item.itemText}</p><p class="text-xs text-indigo-500">${item.topic}</p></a>`).join('');
+                document.querySelectorAll('.focus-item-link').forEach(link => { link.addEventListener('click', (e) => { e.preventDefault(); showTopicActionsModal(e.currentTarget.dataset.topic); }); });
+            } else {
+                focusAreasList.innerHTML = `<p class="text-slate-400 text-sm text-center py-4">No specific weak areas detected. Keep up the great work!</p>`;
+            }
+        }
+        
+        function renderLeaderboard() {
+            const leaders = [{ name: 'Alex Johnson', points: 12500 }, { name: state.userName, points: state.points }, { name: 'Maria Garcia', points: 9800 }, { name: 'Chen Wei', points: 8500 }, { name: 'Fatima Al-Sayed', points: 7200 }].sort((a,b) => b.points - a.points);
+            leaderboardList.innerHTML = leaders.map((leader, i) => `<div class="flex items-center justify-between p-2 rounded-lg ${leader.name === state.userName ? 'bg-indigo-100' : ''}"><div class="flex items-center gap-3"><span class="font-bold text-slate-500 w-5">${i + 1}</span><span class="font-semibold text-slate-700">${leader.name}</span></div><span class="font-bold text-indigo-600">${leader.points} pts</span></div>`).join('');
+        }
+
+        function renderProgressChart() {
+            if (progressChart) progressChart.destroy();
+            const ctx = document.getElementById('progress-chart').getContext('2d');
+            let latestTopic = null, lastDate = 0;
+            Object.entries(state.userProgress).forEach(([topic, progress]) => {
+                const history = progress.performance?.quizHistory;
+                if (history && history.length > 0) {
+                    const latestQuizDate = new Date(history[history.length - 1].date).getTime();
+                    if (latestQuizDate > lastDate) {
+                        lastDate = latestQuizDate;
+                        latestTopic = topic;
+                    }
+                }
+            });
+
+            if (latestTopic && state.userProgress[latestTopic].performance.quizHistory.length > 1) {
+                const history = state.userProgress[latestTopic].performance.quizHistory;
+                document.getElementById('chart-topic-name').textContent = latestTopic;
+                const labels = history.map(q => new Date(q.date).toLocaleDateString());
+                const data = history.map(q => q.score * 100);
+                progressChart = new Chart(ctx, {
+                    type: 'line', data: { labels, datasets: [{ label: 'Quiz Score %', data, borderColor: '#4f46e5', tension: 0.1, fill: false }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } }, plugins: { legend: { display: false } } }
+                });
+            } else {
+                document.getElementById('chart-topic-name').textContent = "your next topic";
+                progressChart = new Chart(ctx, { type: 'line', data: { labels: ['Start', 'Finish'], datasets: [{ data: [null,null] }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } }, plugins: { legend: { display: false } } }});
+            }
+        }
+
+        function renderCertificatesView() {
+            const grid = document.getElementById('certificates-grid');
+            const masteredTopics = Object.keys(state.userProgress).filter(topic => {
+                const p = state.userProgress[topic], total = (p.module.flashcards?.length||0)+(p.module.quiz?.length||0), mastered = Object.values(p.items||{}).filter(i=>i.level>3).length;
+                return total > 0 && (mastered/total) >= 0.9;
+            });
+
+            if (masteredTopics.length === 0) {
+                grid.innerHTML = `<div class="col-span-1 md:col-span-2 lg:col-span-3 text-center py-12 bg-white rounded-xl shadow"><h3 class="text-xl font-semibold text-slate-700">No Certificates Yet!</h3><p class="text-slate-500 mt-2">Achieve 90% mastery in a topic to earn your first certificate.</p></div>`;
+                return;
+            }
+
+            grid.innerHTML = masteredTopics.map(topic => `
+                <button data-topic="${topic}" class="cert-card-btn group bg-white p-6 rounded-xl shadow hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 text-center">
+                    <div class="bg-amber-100 rounded-full w-16 h-16 mx-auto flex items-center justify-center group-hover:bg-amber-400 transition-colors">
+                        <svg class="w-8 h-8 text-amber-500 group-hover:text-white transition-colors" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9zM3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm11 1H6v8l4-2 4 2V6z" clip-rule="evenodd"></path></svg>
+                    </div>
+                    <h4 class="font-bold text-slate-800 mt-4">${topic}</h4>
+                    <p class="text-sm text-slate-500 mt-1">Issued: ${new Date().toLocaleDateString()}</p>
+                </button>
+            `).join('');
+
+            grid.querySelectorAll('.cert-card-btn').forEach(button => {
+                button.addEventListener('click', (e) => showCertificate(e.currentTarget.dataset.topic));
+            });
+        }
+        
+        function openModal(title) { modalTitle.textContent = title; modalOverlay.classList.remove('hidden'); }
+        function closeModal() { modalOverlay.classList.add('hidden'); modalBody.innerHTML = ''; renderDashboard(); }
+        
+        function showTopicActionsModal(topic) {
+            openModal(topic);
+            state.currentTopic = topic;
+            const p = state.userProgress[topic], total = (p.module.flashcards?.length||0)+(p.module.quiz?.length||0), mastered = Object.values(p.items||{}).filter(i=>i.level>3).length;
+            const mastery = total > 0 ? Math.round((mastered/total)*100) : 0;
+            const certButton = mastery >= 90 ? `<button id="modal-cert-btn" class="bg-amber-500 text-white p-6 rounded-xl text-left hover:bg-amber-600 transition col-span-1 md:col-span-3"><h3 class="text-xl font-semibold">View Certificate</h3><p class="mt-1">Download and share your achievement.</p></button>` : '';
+
+            modalBody.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 gap-4">${certButton}<button id="modal-reading-btn" class="bg-sky-50 p-6 rounded-xl text-left hover:bg-sky-100 transition"><h3 class="text-xl font-semibold text-sky-800">Build Knowledge</h3><p class="text-sky-700 mt-1">Review core concepts.</p></button><button id="modal-flashcards-btn" class="bg-amber-50 p-6 rounded-xl text-left hover:bg-amber-100 transition"><h3 class="text-xl font-semibold text-amber-800">Practice Recall</h3><p class="text-amber-700 mt-1">Strengthen memory.</p></button><button id="modal-quiz-btn" class="bg-emerald-50 p-6 rounded-xl text-left hover:bg-emerald-100 transition"><h3 class="text-xl font-semibold text-emerald-800">Prove Mastery</h3><p class="text-emerald-700 mt-1">Take the adaptive quiz.</p></button></div>`;
+            document.getElementById('modal-reading-btn').onclick = () => showReading();
+            document.getElementById('modal-flashcards-btn').onclick = () => startFlashcards(false);
+            document.getElementById('modal-quiz-btn').onclick = () => startQuiz();
+            if (mastery >= 90) {
+                document.getElementById('modal-cert-btn').onclick = () => showCertificate(topic);
+            }
+        }
+
+        function showCertificate(topic) {
+            openModal("Certificate of Mastery");
+            modalBody.innerHTML = `
+                <div id="certificate-content" class="bg-white p-8 border-4 border-indigo-200 rounded-lg text-center">
+                    <h2 class="text-4xl font-bold text-indigo-700" style="font-family: 'serif'">Certificate of Mastery</h2>
+                    <p class="text-lg mt-4 text-slate-600">This certificate is proudly presented to</p>
+                    <p class="text-3xl font-semibold my-6 text-slate-900">${state.userName}</p>
+                    <p class="text-lg text-slate-600">for successfully demonstrating mastery in</p>
+                    <p class="text-2xl font-bold my-4 text-indigo-600">${topic}</p>
+                    <p class="text-sm text-slate-500">Issued on: ${new Date().toLocaleDateString()}</p>
+                </div>
+                <button id="print-cert-btn" class="w-full mt-6 bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 transition no-print">Print Certificate</button>
+            `;
+            document.getElementById('print-cert-btn').addEventListener('click', () => window.print());
+        }
+
+        function showTopicSelectionModal(suggestions = []) {
+            openModal("Start a New Topic");
+            
+            const suggestedHtml = suggestions.length > 0 ? `
+                <div class="mb-8">
+                    <h3 class="font-semibold text-lg mb-3">Recommended For You</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        ${suggestions.map(topic => `<button class="suggested-topic-btn w-full text-left p-3 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">${topic}</button>`).join('')}
+                    </div>
+                </div>
+                <hr class="my-6">
+            ` : '';
+
+            modalBody.innerHTML = `
+                <div id="topic-selection-modal-content">
+                    ${suggestedHtml}
+                    <h2 class="text-xl font-semibold mb-2">What would you like to learn?</h2>
+                    <p class="text-slate-500 mb-6">Enter a topic to generate a new learning module.</p>
+                    <form id="topic-form-modal">
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <input type="text" id="topic-input-modal" placeholder="e.g., 'Project Management Basics'" class="flex-grow w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition" required>
+                            <button type="submit" class="bg-indigo-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-indigo-700 transition">Generate</button>
+                        </div>
+                    </form>
+                    <div id="api-key-error-modal" class="hidden mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg"><strong>Error:</strong> API Key is missing. Please add your Gemini API Key to the script.</div>
+                </div>
+                <div id="loading-view-modal" class="hidden flex flex-col items-center justify-center text-center p-8">
+                    <div class="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                    <p class="mt-4 text-lg font-medium text-slate-600">Generating your adaptive learning module...</p>
+                    <p class="text-sm text-slate-500">This can take a moment.</p>
+                </div>
+            `;
+            document.getElementById('topic-form-modal').addEventListener('submit', (e) => { e.preventDefault(); handleTopicGeneration(document.getElementById('topic-input-modal').value.trim()); });
+            document.querySelectorAll('.suggested-topic-btn').forEach(btn => btn.addEventListener('click', () => handleTopicGeneration(btn.textContent)));
+        }
+        
+        async function generateModule(topic) {
+            modalTitle.textContent = `Generating: ${topic}`;
+            modalBody.innerHTML = `
+                <div class="flex flex-col items-center justify-center text-center p-8">
+                    <div class="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                    <p class="mt-4 text-lg font-medium text-slate-600">Creating your personalized learning module...</p>
+                    <p class="text-sm text-slate-500">This can take a moment.</p>
+                </div>`;
+            openModal();
+
+            try {
+                 const systemPrompt = `You are a micro-learning content creator. Generate a complete, self-contained learning module in a single JSON object based on the user's topic and preferences. The JSON must have three keys: "summary" (a 150-word explanation), "flashcards" (an array of 5-7 objects, each with "question" and "answer"), and "quiz" (an array of 3-4 multiple-choice question objects, each with "question", "options" array, and "correctAnswer" index).`;
+                const userPrompt = `Based on the topic "${topic}", and the user's learning preferences (${JSON.stringify(state.surveyData.learningStyles)}), generate a micro-learning module.`;
+
+                // CORRECTED: Send request to your server
+                const response = await fetch('/gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: userPrompt, systemInstruction: systemPrompt }) // Pass the full prompt
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`API Error: ${errorData.error || 'Unknown error'}`);
+                }
+
+                const result = await response.json();
+                const moduleContent = JSON.parse(result.candidates[0].content.parts[0].text);
+
+                if (!state.userProgress[topic]) {
+                    state.userProgress[topic] = { module: {}, items: {}, performance: { quizHistory: [] } };
+                }
+                state.userProgress[topic].module = moduleContent;
+                state.currentTopic = topic;
+                saveState();
+                renderMenuTopics();
+                startLearningSession(topic);
+
+            } catch(error) {
+                console.error("Error generating module:", error);
+                modalBody.innerHTML = `<div class="text-center text-red-500"><p>Failed to generate the module. Please try again later.</p><p class="text-sm">${error.message}</p></div>`;
+            }
+        }
+        
+        async function handleTopicGeneration(topic) {
+    if (!topic) return;
+    document.getElementById('topic-selection-modal-content').classList.add('hidden');
+    document.getElementById('loading-view-modal').classList.remove('hidden');
+    document.getElementById('modal-close-btn').classList.add('hidden');
+    state.currentTopic = topic;
+
+    try {
+        const systemPrompt = `You are an expert instructional designer creating adaptive learning content. Generate a microlearning module as a single, valid JSON object. The JSON object must have: "topic": String, the user's topic. "summary": An array of 3-5 objects, each with a "title" (string), "content" (string paragraph), and an optional "youtubeVideoId" (string, just the ID like 'dQw4w9WgXcQ', for a relevant explanatory video). "flashcards": An array of 5-8 objects, each with "term" and "definition". "quiz": An array of 4-6 multiple-choice questions. Each question object must have: "question": A string. "options": An array of 4 strings. "answer": The correct option string. "explanation": A brief, clear string explaining WHY the answer is correct. This is crucial for remediation.`;
+        
+        // ✅ CORRECTED: Call your own server, not Google's API directly
+        const response = await fetch('/gemini', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prompt: `Generate a module for the topic: "${topic}"`,
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`API Error: ${errorData.error.message || 'Unknown server error'}`);
+        }
+
+        const result = await response.json();
+        const newModule = JSON.parse(result.candidates[0].content.parts[0].text);
+
+        if (!state.userProgress[topic]) {
+            state.userProgress[topic] = { module: newModule, items: {}, performance: { quizHistory: [] } };
+        }
+        
+        saveState();
+        closeModal();
+        showTopicActionsModal(topic);
+
+    } catch (error) {
+        const errorEl = document.getElementById('api-key-error-modal');
+        errorEl.textContent = `Error: ${error.message}`;
+        errorEl.classList.remove('hidden');
+        document.getElementById('topic-selection-modal-content').classList.remove('hidden');
+        document.getElementById('loading-view-modal').classList.add('hidden');
+    } finally {
+        document.getElementById('modal-close-btn').classList.remove('hidden');
+    }
+}
+        
+        async function handleAskAiTutor(event, questionData, containerEl) {
+            const button = event.target;
+            button.disabled = true; button.textContent = 'Generating...';
+            try {
+                const prompt = `A learner was confused by an explanation for a quiz question. Question: "${questionData.question}". Correct Answer: "${questionData.answer}". Original Explanation: "${questionData.explanation}". Please provide a new, simpler explanation. You can use an analogy if it helps. The new explanation should be a single, concise paragraph.`;
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+                const payload = { contents: [{ parts: [{ text: prompt }] }] };
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) { const errorData = await response.json(); throw new Error(`API Error: ${errorData.error.message}`); }
+                const result = await response.json();
+                const newExplanation = result.candidates[0].content.parts[0].text;
+                containerEl.innerHTML = `<h5 class="font-bold text-red-800">Explanation</h5><p class="mt-1 text-red-700">${newExplanation}</p><p class="text-xs text-slate-400 mt-2">New explanation by AI Tutor</p>`;
+            } catch (error) { button.textContent = 'Error. Try again.'; button.disabled = false; console.error("AI Tutor Error:", error); }
+        }
+
+        function startDailyTraining() {
+            const allDueItems = [];
+            const now = new Date();
+            Object.entries(state.userProgress).forEach(([topic, progress]) => {
+                const module = progress.module;
+                const items = progress.items || {};
+                const allItemIds = [...module.quiz.map((_, i) => `q_${i}`), ...module.flashcards.map((_, i) => `f_${i}`)];
+                allItemIds.forEach(itemId => {
+                    const itemData = items[itemId];
+                    if (!itemData || new Date(itemData.nextReviewDate) <= now) {
+                         const [type, indexStr] = itemId.split('_');
+                        const index = parseInt(indexStr);
+                        if (type === 'q' && module.quiz[index]) {
+                            allDueItems.push({ ...module.quiz[index], index, itemId, topic });
+                        } else if (type === 'f' && module.flashcards[index]) {
+                             allDueItems.push({ ...module.flashcards[index], index, itemId, topic });
+                        }
+                    }
+                });
+            });
+            allDueItems.sort((a,b) => (state.userProgress[a.topic].items[a.itemId]?.level || 0) - (state.userProgress[b.topic].items[b.itemId]?.level || 0));
+            const sessionItems = allDueItems.slice(0, 5);
+            if(sessionItems.length === 0) {
+                openModal("Daily Training");
+                modalBody.innerHTML = `<div class="text-center p-4"><p>You have no items due for review. Great work! Feel free to start a new topic.</p></div>`;
+                return;
+            }
+            startQuiz(sessionItems.filter(item => item.question)); // Only quiz on quiz items for now
+        }
+
+        function showReading() { 
+            openModal("Build Knowledge: " + state.currentTopic);
+            const summaryContent = state.userProgress[state.currentTopic].module.summary;
+             modalBody.innerHTML = `
+                <div class="flex overflow-x-auto space-x-6 pb-4 custom-scrollbar">
+                    ${summaryContent.map(item => `
+                        <div class="flex-shrink-0 w-96 bg-slate-50 rounded-xl p-5 border flex flex-col">
+                            <h4 class="font-bold text-lg text-slate-800 mb-2">${item.title}</h4>
+                            <p class="text-slate-600 text-sm mb-4 flex-grow">${item.content}</p>
+                            ${item.youtubeVideoId ? `
+                                <div class="mt-auto">
+                                    <h5 class="text-sm font-semibold text-slate-700 mb-2">Video Explanation</h5>
+                                    <div style="position: relative; padding-bottom: 56.25%; height: 0;" class="rounded-lg overflow-hidden shadow-md">
+                                        <iframe 
+                                            src="https://www.youtube.com/embed/${item.youtubeVideoId}" 
+                                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+                                            frameborder="0" 
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                            allowfullscreen
+                                            title="YouTube video player">
+                                        </iframe>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        function startFlashcards(trickyOnly = false) { 
+            const topicProgress = state.userProgress[state.currentTopic];
+            let reviewItems;
+
+            if (trickyOnly) {
+                const trickyItemIds = Object.entries(topicProgress.items || {})
+                    .filter(([id, data]) => data.incorrectCount > 0 && id.startsWith('f_'))
+                    .sort(([, a], [, b]) => b.incorrectCount - a.incorrectCount)
+                    .slice(0, 3).map(([id]) => id);
+                
+                reviewItems = trickyItemIds.map(id => ({ ...state.userProgress[state.currentTopic].module.flashcards[parseInt(id.split('')[1])], index: parseInt(id.split('')[1]) }));
+
+                if(reviewItems.length === 0) {
+                    modalBody.innerHTML = `<p class="text-center">No tricky flashcards to review. Great job!</p>`;
+                    return;
+                }
+            } else {
+                const now = new Date();
+                reviewItems = state.userProgress[state.currentTopic].module.flashcards
+                    .map((card, index) => ({ ...card, index }))
+                    .filter(card => {
+                        const itemProgress = topicProgress.items[`f_${card.index}`];
+                        return !itemProgress || new Date(itemProgress.nextReviewDate) <= now;
+                    });
+            }
+            if (reviewItems.length === 0) {
+                 openModal("Practice Recall");
+                 modalBody.innerHTML = `<div class="text-center p-4"><p>No flashcards are due for review. Well done!</p></div>`;
+                 return;
+            }
+            openModal("Practice Recall: " + state.currentTopic);
+            let currentCardIndex = 0;
+
+            function renderFlashcard() {
+                if (currentCardIndex >= reviewItems.length) { closeModal(); return; }
+                const cardData = reviewItems[currentCardIndex];
+                modalBody.innerHTML = `<div class="[perspective:1000px]"><div class="card relative w-full h-64"><div class="card-face absolute w-full h-full p-6 rounded-lg shadow-lg bg-slate-100 flex items-center justify-center text-center"><p class="text-2xl">${cardData.term}</p></div><div class="card-face card-face-back absolute w-full h-full p-6 rounded-lg shadow-lg bg-indigo-100 flex items-center justify-center text-center"><p class="text-lg">${cardData.definition}</p></div></div></div><div class="flex justify-center items-center mt-6 gap-4"><button id="flip-btn" class="w-full bg-slate-200 font-semibold py-3 rounded-lg hover:bg-slate-300 transition">Show Answer</button></div><div id="feedback-buttons" class="hidden grid grid-cols-2 items-center mt-4 gap-4"><button data-knewit="false" class="bg-amber-500 text-white font-semibold px-6 py-3 rounded-lg hover:bg-amber-600 transition">Review again</button><button data-knewit="true" class="bg-green-500 text-white font-semibold px-6 py-3 rounded-lg hover:bg-green-600 transition">I knew this</button></div>`;
+                const card = modalBody.querySelector('.card');
+                const flipBtn = document.getElementById('flip-btn');
+                const feedbackButtonsContainer = document.getElementById('feedback-buttons');
+                flipBtn.addEventListener('click', () => { card.classList.add('is-flipped'); flipBtn.parentElement.classList.add('hidden'); feedbackButtonsContainer.classList.remove('hidden'); });
+                feedbackButtonsContainer.querySelectorAll('button').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        updateItemProgress(state.currentTopic, `f_${cardData.index}`, e.target.dataset.knewit === 'true');
+                        currentCardIndex++;
+                        renderFlashcard();
+                    });
+                });
+            }
+            renderFlashcard();
+        }
+        
+        function startQuiz(quizItems = null) {
+            const isDailyTraining = !!quizItems;
+            const topicForQuiz = isDailyTraining ? "Daily Training" : state.currentTopic;
+            const itemsToQuiz = quizItems || (state.userProgress[topicForQuiz] ? state.userProgress[topicForQuiz].module.quiz.map((q, index) => ({...q, index, itemId: `q_${index}`, topic: topicForQuiz })) : []);
+
+            if (itemsToQuiz.length === 0) { openModal("Prove Mastery"); modalBody.innerHTML = `<p class="text-center">No quiz questions available.</p>`; return; }
+            openModal(isDailyTraining ? "Today's Training" : "Prove Mastery: " + topicForQuiz);
+            let currentQuestionIndex = 0, score = 0, selectedConfidence = null;
+            function renderQuestion() {
+                if (currentQuestionIndex >= itemsToQuiz.length) { if (!isDailyTraining) recordQuizPerformance(score, itemsToQuiz.length, topicForQuiz); closeModal(); return; }
+                const questionData = itemsToQuiz[currentQuestionIndex];
+                selectedConfidence = null;
+                modalBody.innerHTML = `<div><p class="text-lg font-semibold mb-4">${currentQuestionIndex + 1}. ${questionData.question}</p><div class="mb-6"><label class="font-semibold text-slate-600 mb-2 block">How confident are you in your answer?</label><div id="confidence-container" class="grid grid-cols-2 md:grid-cols-4 gap-2"><button data-confidence="high" class="confidence-btn border-2 p-3 rounded-lg transition">I know it</button><button data-confidence="medium" class="confidence-btn border-2 p-3 rounded-lg transition">I think so</button><button data-confidence="low" class="confidence-btn border-2 p-3 rounded-lg transition">Unsure</button><button data-confidence="guess" class="confidence-btn border-2 p-3 rounded-lg transition">I'm guessing</button></div></div><div id="options-container" class="space-y-3 opacity-40 pointer-events-none">${questionData.options.map(o => `<button class="w-full text-left p-4 bg-slate-100 rounded-lg hover:bg-indigo-100 transition border-2 border-transparent">${o}</button>`).join('')}</div><div id="remediation-container" class="hidden mt-4 p-4 bg-red-50 border-l-4 border-red-400"></div><button id="next-question-btn" class="hidden mt-4 w-full bg-indigo-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-indigo-700 transition">Next</button></div>`;
+                const opts = document.getElementById('options-container'), nextBtn = document.getElementById('next-question-btn'), conf = document.getElementById('confidence-container');
+                conf.querySelectorAll('.confidence-btn').forEach(b => { b.addEventListener('click', () => { conf.querySelectorAll('.confidence-btn').forEach(btn => btn.classList.remove('selected')); b.classList.add('selected'); selectedConfidence = b.dataset.confidence; opts.classList.remove('opacity-40', 'pointer-events-none'); }); });
+                opts.querySelectorAll('button').forEach(b => { b.addEventListener('click', () => { opts.querySelectorAll('button').forEach(btn => btn.disabled = true); conf.querySelectorAll('button').forEach(btn => btn.disabled = true); const isCorrect = b.textContent.trim() === questionData.answer; updateItemProgress(questionData.topic, questionData.itemId, isCorrect, selectedConfidence); if (isCorrect) { score++; b.classList.add('bg-green-200', 'border-green-500'); } else { b.classList.add('bg-red-200', 'border-red-500'); const r = document.getElementById('remediation-container'); r.innerHTML = `<h5 class="font-bold text-red-800">Explanation</h5><p class="mt-1 text-red-700">${questionData.explanation}</p><button id="ask-ai-tutor-btn" class="text-sm text-indigo-600 font-semibold mt-2 hover:underline">Ask for a different explanation</button>`; r.classList.remove('hidden'); document.getElementById('ask-ai-tutor-btn').addEventListener('click', e => handleAskAiTutor(e, questionData, r)); } nextBtn.classList.remove('hidden'); }); });
+                nextBtn.addEventListener('click', () => { currentQuestionIndex++; renderQuestion(); });
+            }
+            renderQuestion();
+        }
+        
+        function updateItemProgress(topic, itemId, isCorrect, confidence = null) {
+            const topicProgress = state.userProgress[topic];
+            if(!topicProgress) return;
+            if(!topicProgress.items) topicProgress.items = {};
+            const item = topicProgress.items[itemId] || { level: 0, incorrectCount: 0 };
+            const pointsAwarded = calculatePoints(isCorrect, confidence);
+            state.points += pointsAwarded;
+            item.lastConfidence = confidence;
+            if (isCorrect) { item.level = Math.min(item.level + 1, SPACED_REPETITION_INTERVALS.length); } else { item.level = 0; item.incorrectCount = (item.incorrectCount || 0) + 1; }
+            const intervalDays = isCorrect ? (SPACED_REPETITION_INTERVALS[item.level - 1] || 1) : 0;
+            const nextReviewDate = new Date();
+            if (intervalDays > 0) { nextReviewDate.setDate(nextReviewDate.getDate() + intervalDays); } else { nextReviewDate.setMinutes(nextReviewDate.getMinutes() + 1); }
+            item.nextReviewDate = nextReviewDate.toISOString();
+            topicProgress.items[itemId] = item;
+            saveState();
+        }
+
+        function calculatePoints(isCorrect, confidence) {
+            if (!isCorrect) return 0;
+            switch(confidence) {
+                case 'high': return 20; case 'medium': return 15;
+                case 'low': return 10; case 'guess': return 5;
+                default: return 10;
+            }
+        }
+        
+        function recordQuizPerformance(score, totalQuestions, topic) {
+            const topicProgress = state.userProgress[topic];
+            if (!topicProgress) return;
+            if (!topicProgress.performance) topicProgress.performance = { quizHistory: [] };
+            topicProgress.performance.quizHistory.push({ score: score / totalQuestions, date: newtoISOString() });
+            saveState();
+        }
+        
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
